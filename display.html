@@ -1,0 +1,448 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Car Inventory Display</title>
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; padding: 20px; max-width: 1400px; margin: 0 auto; background: #f0f2f5; color: #333; }
+        
+        header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px; flex-wrap: wrap; gap: 20px; }
+        header h1 { margin: 0; font-size: 1.8rem; color: #1a1a1a; }
+        
+        .header-actions { display: flex; gap: 10px; }
+        .btn { padding: 10px 20px; background: #007bff; color: white; text-decoration: none; border-radius: 6px; border: none; cursor: pointer; font-size: 14px; font-weight: 500; transition: background 0.2s; }
+        .btn:hover { background: #0056b3; }
+        .btn-outline { background: white; color: #007bff; border: 1px solid #007bff; }
+        .btn-outline:hover { background: #f8f9fa; }
+
+        /* Summary Card */
+        .summary-card {
+            background: linear-gradient(135deg, #28a745, #218838);
+            color: white;
+            padding: 30px;
+            border-radius: 12px;
+            margin-bottom: 40px;
+            text-align: center;
+            box-shadow: 0 4px 15px rgba(40, 167, 69, 0.2);
+            max-width: 400px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+        .summary-title { font-size: 1.1rem; opacity: 0.9; margin-bottom: 10px; text-transform: uppercase; letter-spacing: 1px; }
+        .summary-value { font-size: 2.5rem; font-weight: 700; margin: 0; }
+
+        /* Grid Layout */
+        .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(350px, 1fr)); gap: 25px; }
+        
+        /* Car Card */
+        .card { background: white; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.08); transition: transform 0.2s, box-shadow 0.2s; display: flex; flex-direction: column; }
+        
+        .card-header { background: #f8f9fa; padding: 15px 20px; border-bottom: 1px solid #eaeaea; }
+        .card-header h3 { margin: 0; font-size: 1.25rem; color: #2c3e50; }
+        .card-id { font-size: 0.85rem; color: #6c757d; margin-top: 4px; }
+        
+        .card-body { padding: 20px; flex-grow: 1; }
+        
+        .field-group { display: flex; justify-content: space-between; margin-bottom: 12px; border-bottom: 1px solid #f0f0f0; padding-bottom: 8px; }
+        .field-group:last-child { border-bottom: none; margin-bottom: 0; padding-bottom: 0; }
+        
+        .label { color: #6c757d; font-size: 0.9rem; font-weight: 500; }
+        .value { color: #212529; font-weight: 600; text-align: right; word-break: break-word; max-width: 60%; }
+        
+        .highlight-positive { color: #28a745; }
+        .highlight-neutral { color: #007bff; }
+        .section-header { margin-top: 15px; margin-bottom: 10px; font-size: 0.85rem; color: #999; text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 2px solid #f0f0f0; padding-bottom: 5px; }
+
+        /* Search */
+        .search-container { margin-bottom: 30px; max-width: 600px; margin-left: auto; margin-right: auto; }
+        .search-input { width: 100%; padding: 12px 20px; border: 2px solid #e9ecef; border-radius: 30px; font-size: 16px; outline: none; transition: border-color 0.2s; box-sizing: border-box; }
+        .search-input:focus { border-color: #007bff; }
+
+        /* Utilities */
+        .error { color: #721c24; background-color: #f8d7da; border-color: #f5c6cb; padding: 20px; border-radius: 8px; text-align: center; }
+        .empty-state { grid-column: 1/-1; text-align: center; padding: 60px; color: #6c757d; background: white; border-radius: 12px; }
+        
+        @media (max-width: 600px) {
+            .grid { grid-template-columns: 1fr; }
+            .header-actions { width: 100%; justify-content: space-between; margin-top: 10px; }
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>Car Inventory</h1>
+        <div class="header-actions">
+            <a href="admin/" class="btn btn-outline">Back to Editor</a>
+            <button onclick="loadData()" class="btn">Refresh Data</button>
+        </div>
+    </header>
+
+    <div id="summary-container"></div>
+
+    <div class="search-container">
+        <input type="text" id="searchInput" class="search-input" placeholder="Search by Car Name, Owner, or VIN..." onkeyup="filterCards()">
+    </div>
+
+    <div id="cars-grid" class="grid">Loading...</div>
+
+    <script>
+        let allCars = [];
+
+        async function loadData() {
+            const grid = document.getElementById('cars-grid');
+            
+            grid.innerHTML = '<p style="grid-column: 1/-1; text-align: center;">Loading data...</p>';
+            
+            try {
+                // Cache busting with timestamp
+                const response = await fetch('content/data.json?v=' + Date.now());
+                if (!response.ok) {
+                    if (response.status === 404) throw new Error('Data file not found (404)');
+                    throw new Error(`HTTP error ${response.status}`);
+                }
+                
+                let data;
+                try {
+                    data = await response.json();
+                } catch (e) {
+                    throw new Error('Malformed JSON data in content/data.json');
+                }
+                
+                if (!data || !data.cars || !Array.isArray(data.cars)) {
+                    throw new Error('Invalid JSON structure: missing "cars" array');
+                }
+
+                allCars = data.cars;
+                
+                renderSummary(allCars);
+                renderGrid(allCars);
+
+            } catch (err) {
+                const grid = document.getElementById('cars-grid');
+                grid.innerHTML = `<div class="error">
+                    <h3>Error Loading Data</h3>
+                    <p>${err.message}</p>
+                    <p>Please ensure <code>content/data.json</code> exists and has the correct schema.</p>
+                </div>`;
+            }
+        }
+
+        function formatMoney(amount) {
+            if (amount == null || isNaN(amount)) return '0.00';
+            return Number(amount).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        }
+
+        function renderSummary(cars) {
+            // New Profit Logic: Sum of leftOverAndProfit (Calculated fresh)
+            const totalProfit = cars.reduce((sum, car) => {
+                const total = parseFloat(car.totalCostOfShipping) || 0;
+                const shipping = parseFloat(car.shippingCost) || 0;
+                const profit = total - shipping;
+                return sum + profit;
+            }, 0);
+
+            const container = document.getElementById('summary-container');
+            container.innerHTML = `
+                <div class="summary-card">
+                    <div class="summary-title">Total Profit (All Cars)</div>
+                    <div class="summary-value">${formatMoney(totalProfit)}</div>
+                </div>
+            `;
+        }
+
+        function renderGrid(cars) {
+            const grid = document.getElementById('cars-grid');
+            
+            if (cars.length === 0) {
+                grid.innerHTML = '<div class="empty-state">No cars found. <a href="admin/">Add some in the editor!</a></div>';
+                return;
+            }
+
+            grid.innerHTML = cars.map(car => {
+                // New Logic Display
+                const shippingCost = parseFloat(car.shippingCost) || 0;
+                const totalCost = parseFloat(car.totalCostOfShipping) || 0;
+                // Force calculation based on new rule to ensure accuracy
+                const profit = (totalCost - shippingCost).toFixed(2);
+                
+                // Render payments based on Type
+                const type = parseInt(car.arrivalOfPaymentType) || 1;
+                let paymentsHtml = '';
+                
+                for (let i = 1; i <= 5; i++) {
+                    // Show payments up to the Type count
+                    if (i <= type) {
+                        const amt = car[`arrivalPayment${i}Amount`];
+                        const date = car[`arrivalPayment${i}Date`];
+                        // Only show if fields exist to keep it clean, but requirement implies they are required for that type.
+                        paymentsHtml += renderField(`Payment ${i}`, `${formatMoney(amt)} <small style="color:#888">(${date || 'No Date'})</small>`);
+                    }
+                }
+
+                return `
+                <div class="card">
+                    <div class="card-header">
+                        <h3>${escapeHtml(car.carName || 'Unnamed Car')}</h3>
+                        <div class="card-id">ID: ${escapeHtml(car.id || 'N/A')}</div>
+                    </div>
+                    <div class="card-body">
+                        ${renderField('Owner', car.carOwnerName)}
+                        ${renderField('VIN', car.vin)}
+                        ${renderField('Purchase Date', car.purchaseDate)}
+                        ${renderField('Arrival Date', car.arrivalDate)}
+                        
+                        <div class="section-header">Financials</div>
+                        ${renderField('Total Cost of Shipping', formatMoney(totalCost))}
+                        ${renderField('Shipping Cost', formatMoney(shippingCost))}
+                        ${renderField('Shipping Pay Date', car.shippingCostPaymentDate)}
+                        ${renderField('Njoom Shipping Cost', formatMoney(car.njoomShippingCost))}
+                        ${renderField('Car Total Cost', formatMoney(car.carTotalCost))}
+                        ${renderField('Profit / Left Over', formatMoney(profit), 'highlight-positive')}
+                        
+                        <div class="section-header">Payments (Type ${type})</div>
+                        ${paymentsHtml}
+
+                        <div class="section-header">Notes</div>
+                        <div class="field-group" style="display: block;">
+                            <div class="value" style="text-align: left; max-width: 100%; white-space: pre-wrap;">${escapeHtml(car.notes || 'No notes available.')}</div>
+                        </div>
+
+                        <!-- Export Button -->
+                        <div style="margin-top: 20px; padding-top: 15px; border-top: 1px solid #f0f0f0;">
+                            <button onclick="exportToPDF(this.getAttribute('data-id'))" data-id="${escapeHtml(car.id)}" class="btn" style="width: 100%; background: #343a40; display: flex; align-items: center; justify-content: center; gap: 8px;">
+                                <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="margin-right: 5px;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
+                                Export to PDF
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            `}).join(''); 
+        }
+
+        function renderField(label, value, className = '') {
+            if (value === null || value === undefined || value === '') return ''; 
+            return `
+                <div class="field-group">
+                    <span class="label">${escapeHtml(label)}</span>
+                    <span class="value ${className}">${value}</span> 
+                </div>
+            `; 
+        }   
+
+        function filterCards() {
+            const query = document.getElementById('searchInput').value.toLowerCase();
+            const filtered = allCars.filter(car => {
+                const name = (car.carName || '').toLowerCase();
+                const owner = (car.carOwnerName || '').toLowerCase();
+                const vin = (car.vin || '').toLowerCase();
+                return name.includes(query) || owner.includes(query) || vin.includes(query);
+            });
+            
+            renderGrid(filtered);
+        }
+
+        function escapeHtml(text) {
+            if (text == null) return '';
+            return String(text)
+                .replace(/&/g, "&amp;")
+                .replace(/</g, "&lt;")
+                .replace(/>/g, "&gt;")
+                .replace(/"/g, "&quot;")
+                .replace(/'/g, "&#039;");
+        }
+
+        function exportToPDF(carId) {
+            const car = allCars.find(c => c.id === carId);
+            if (!car) return alert('Car not found!');
+
+            // Get absolute logo path to ensure it loads in the new window
+            const baseUrl = window.location.href.substring(0, window.location.href.lastIndexOf('/') + 1);
+            const logoUrl = baseUrl + 'logo.png';
+
+            const purchaseCost = parseFloat(car.purchaseCost) || 0;
+            // Formula: purchaseCost * 3.679 + 83
+            const calculatedTotal = (purchaseCost * 3.679 + 83).toFixed(2);
+            
+            const njoomCost = formatMoney(car.njoomShippingCost);
+            
+            // Signature
+            let signatureHtml = '';
+            if (car.signature) {
+                signatureHtml = `<img src="${car.signature}" class="signature-img" alt="Signature">`;
+            } else {
+                signatureHtml = `<div class="no-signature">(No signature)</div>`;
+            }
+
+            const win = window.open('', '_blank');
+            
+            const html = `
+           <!DOCTYPE html>
+<html>
+<head>
+    <title>Receipt - ${escapeHtml(car.carName)}</title>
+    <style>
+        body {
+            background-color: #323333;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 40px;
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
+            min-height: 100vh;
+            box-sizing: border-box;
+        }
+        @page {
+            size: A4;
+            margin: 0;
+        }
+        .receipt-container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: linear-gradient(135deg, #D4B77B, #8D7146, #D4B77B);
+            padding: 40px;
+            border-radius: 12px;
+            color: #323333;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.5);
+            position: relative;
+        }
+        .header {
+            text-align: center;
+            margin-bottom: 40px;
+            border-bottom: 2px solid rgba(50, 51, 51, 0.2);
+            padding-bottom: 20px;
+        }
+        .logo-placeholder {
+            font-size: 14px;
+            color: #323333;
+            margin-bottom: 10px;
+            display: block;
+            text-align: center;
+        }
+        .logo-img {
+            max-height: 150px;
+            display: block;
+            margin-left: auto;
+            margin-right: auto;
+            margin-bottom: 50px;
+        }
+        h1 {
+            margin: 0;
+            font-size: 28px;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            color: #323333;
+        }
+        .grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 25px;
+            margin-bottom: 30px;
+        }
+        .field {
+            background: rgba(255, 255, 255, 0.1); 
+            padding: 10px;
+            border-radius: 6px;
+        }
+        .label {
+            display: block;
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 5px;
+            font-weight: 700;
+            opacity: 0.8;
+        }
+        .value {
+            display: block;
+            font-size: 18px;
+            font-weight: 600;
+        }
+        .signature-section {
+            margin-top: 40px;
+            border-top: 2px solid rgba(50, 51, 51, 0.2);
+            padding-top: 20px;
+        }
+        .signature-img {
+            max-height: 100px;
+            max-width: 100%;
+        }
+        .no-signature {
+            color: #a00;
+            font-weight: bold;
+        }
+        @media print {
+            body {
+                background-color: #323333 !important;
+                -webkit-print-color-adjust: exact;
+            }
+        }
+    </style>
+</head>
+<body>
+    <img src="form-web/logo.png" alt="Logo" class="logo-img">
+
+    <div class="receipt-container">
+        
+        <div class="header">
+            <h1>Receipt Information</h1>
+        </div>
+        
+        <div class="grid">
+            <div class="field">
+                <span class="label">ID</span>
+                <span class="value">${escapeHtml(car.id)}</span>
+            </div>
+            <div class="field">
+                <span class="label">Car Name</span>
+                <span class="value">${escapeHtml(car.carName)}</span>
+            </div>
+            <div class="field">
+                <span class="label">Owner Name</span>
+                <span class="value">${escapeHtml(car.carOwnerName)}</span>
+            </div>
+            <div class="field">
+                <span class="label">VIN</span>
+                <span class="value">${escapeHtml(car.vin)}</span>
+            </div>
+            <div class="field">
+                <span class="label">Purchase Date</span>
+                <span class="value">${escapeHtml(car.purchaseDate)}</span>
+            </div>
+            <div class="field">
+                <span class="label">Arrival Date</span>
+                <span class="value">${escapeHtml(car.arrivalDate)}</span>
+            </div>
+            <div class="field">
+                <span class="label">Njoom Shipping Cost</span>
+                <span class="value">${njoomCost}</span>
+            </div>
+            <div class="field">
+                <span class="label">Total Cost</span>
+                <span class="value">${formatMoney(calculatedTotal)}</span>
+            </div>
+        </div>
+
+        <div class="signature-section">
+            <div class="label">Signature</div>
+            ${signatureHtml}
+        </div>
+    </div>
+    <script>
+        window.onload = function() {
+            setTimeout(function() { window.print(); }, 500);
+        }
+    <\/script>
+</body>
+</html>
+            `;
+
+            win.document.write(html);
+            win.document.close();
+        }
+
+        // Load data on page load
+        loadData();
+    </script>
+</body>
+</html>
