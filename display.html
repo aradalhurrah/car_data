@@ -274,8 +274,38 @@
                 signatureHtml = `<div class="no-signature">(No signature)</div>`;
             }
 
+            // Payment Plan Section
+            const installmentCount = parseInt(car.arrivalOfPaymentType) || 1;
+            let paymentRows = '';
+            for (let i = 1; i <= installmentCount; i++) {
+                const amount = car[`arrivalPayment${i}Amount`];
+                const date = car[`arrivalPayment${i}Date`];
+                paymentRows += `
+                    <tr>
+                        <td>Payment ${i} / الدفعة ${i}</td>
+                        <td>${amount ? formatMoney(amount) : '—'}</td>
+                        <td>${date ? escapeHtml(date) : '—'}</td>
+                    </tr>
+                `;
+            }
+
+            const paymentSectionHtml = `
+                <div class="section-title">Car Payment / دفع السيارة – ${installmentCount} Installments / أقساط</div>
+                <table class="details-table">
+                    <thead>
+                        <tr>
+                            <th>Payment Number / رقم الدفعة</th>
+                            <th>Payment Amount / مبلغ الدفعة</th>
+                            <th>Payment Date / تاريخ الدفعة</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${paymentRows}
+                    </tbody>
+                </table>
+            `;
+
             const win = window.open('', '_blank');
-            
             const html = `
            <!DOCTYPE html>
 <html>
@@ -283,149 +313,206 @@
     <title>Receipt - ${escapeHtml(car.carName)}</title>
     <style>
         body {
-            background-color: #323333;
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: white;
+            font-family: Arial, sans-serif;
             margin: 0;
-            padding: 40px;
+            padding: 20px;
             -webkit-print-color-adjust: exact;
             print-color-adjust: exact;
-            min-height: 100vh;
-            box-sizing: border-box;
+            color: #000;
         }
         @page {
             size: A4;
-            margin: 0;
+            margin: 15mm;
         }
         .receipt-container {
             max-width: 800px;
             margin: 0 auto;
-            background: linear-gradient(135deg, #D4B77B, #8D7146, #D4B77B);
-            padding: 40px;
-            border-radius: 12px;
-            color: #323333;
-            box-shadow: 0 10px 40px rgba(0,0,0,0.5);
+            background: white;
             position: relative;
         }
-        .header {
-            text-align: center;
-            margin-bottom: 40px;
-            border-bottom: 2px solid rgba(50, 51, 51, 0.2);
-            padding-bottom: 20px;
-        }
-        .logo-placeholder {
-            font-size: 14px;
-            color: #323333;
-            margin-bottom: 10px;
-            display: block;
-            text-align: center;
-        }
         .logo-img {
-            max-height: 150px;
+            max-height: 80px;
             display: block;
-            margin-left: auto;
-            margin-right: auto;
-            margin-bottom: 50px;
+            margin: 0 auto 10px auto;
         }
-        h1 {
-            margin: 0;
-            font-size: 28px;
-            text-transform: uppercase;
-            letter-spacing: 2px;
-            color: #323333;
+        .company-info {
+            text-align: center;
+            font-size: 11px;
+            color: #333;
+            margin-bottom: 5px;
         }
-        .grid {
+        .invoice-number {
+            text-align: right;
+            font-size: 12px;
+            font-weight: bold;
+            margin-bottom: 20px;
+            color: #000;
+        }
+        .section-title {
+            background-color: #2c5aa0;
+            color: white;
+            padding: 8px 12px;
+            font-size: 13px;
+            font-weight: bold;
+            margin-top: 15px;
+            margin-bottom: 10px;
+        }
+        .info-grid {
             display: grid;
             grid-template-columns: 1fr 1fr;
-            gap: 25px;
-            margin-bottom: 30px;
+            gap: 0;
+            border: 1px solid #ccc;
+            margin-bottom: 15px;
         }
-        .field {
-            background: rgba(255, 255, 255, 0.1); 
-            padding: 10px;
-            border-radius: 6px;
+        .info-row {
+            display: contents;
         }
-        .label {
-            display: block;
+        .info-label {
+            padding: 8px 12px;
+            background-color: #f5f5f5;
+            border-right: 1px solid #ccc;
+            border-bottom: 1px solid #ccc;
+            font-size: 11px;
+            font-weight: bold;
+            color: #333;
+        }
+        .info-value {
+            padding: 8px 12px;
+            border-bottom: 1px solid #ccc;
+            font-size: 11px;
+            color: #000;
+        }
+        .total-section {
+            margin-top: 20px;
+            border: 2px solid #2c5aa0;
+            padding: 15px;
+        }
+        .total-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 5px 0;
             font-size: 12px;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-            margin-bottom: 5px;
-            font-weight: 700;
-            opacity: 0.8;
         }
-        .value {
-            display: block;
-            font-size: 18px;
-            font-weight: 600;
+        .total-label {
+            font-weight: bold;
+            color: #333;
+        }
+        .total-value {
+            font-weight: bold;
+            color: #000;
+        }
+        .amount-words {
+            margin-top: 15px;
+            padding: 10px;
+            background-color: #f9f9f9;
+            border: 1px solid #ddd;
+            font-size: 11px;
+            font-weight: bold;
+        }
+        .details-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 10px;
+            font-size: 11px;
+        }
+        .details-table th {
+            background-color: #2c5aa0;
+            color: white;
+            padding: 8px;
+            text-align: left;
+            border: 1px solid #2c5aa0;
+        }
+        .details-table td {
+            padding: 8px;
+            border: 1px solid #ccc;
         }
         .signature-section {
-            margin-top: 40px;
-            border-top: 2px solid rgba(50, 51, 51, 0.2);
+            margin-top: 30px;
             padding-top: 20px;
         }
         .signature-img {
-            max-height: 100px;
-            max-width: 100%;
+            max-height: 80px;
+            max-width: 200px;
         }
-        .no-signature {
-            color: #a00;
-            font-weight: bold;
+        .footer {
+            text-align: right;
+            font-size: 10px;
+            color: #666;
+            margin-top: 30px;
         }
         @media print {
             body {
-                background-color: #323333 !important;
-                -webkit-print-color-adjust: exact;
+                background-color: white !important;
             }
         }
     </style>
 </head>
 <body>
-    <img src="/logo.png" alt="Logo" class="logo-img">
-
     <div class="receipt-container">
+        <img src="form-web/logo.png" alt="Logo" class="logo-img">
         
-        <div class="header">
-            <h1>Receipt Information</h1>
-        </div>
-        
-        <div class="grid">
-            <div class="field">
-                <span class="label">ID</span>
-                <span class="value">${escapeHtml(car.id)}</span>
-            </div>
-            <div class="field">
-                <span class="label">Car Name</span>
-                <span class="value">${escapeHtml(car.carName)}</span>
-            </div>
-            <div class="field">
-                <span class="label">Owner Name</span>
-                <span class="value">${escapeHtml(car.carOwnerName)}</span>
-            </div>
-            <div class="field">
-                <span class="label">VIN</span>
-                <span class="value">${escapeHtml(car.vin)}</span>
-            </div>
-            <div class="field">
-                <span class="label">Purchase Date</span>
-                <span class="value">${escapeHtml(car.purchaseDate)}</span>
-            </div>
-            <div class="field">
-                <span class="label">Arrival Date</span>
-                <span class="value">${escapeHtml(car.arrivalDate)}</span>
-            </div>
-            <div class="field">
-                <span class="label">Njoom Shipping Cost</span>
-                <span class="value">${njoomCost}</span>
-            </div>
-            <div class="field">
-                <span class="label">Total Cost</span>
-                <span class="value">${formatMoney(calculatedTotal)}</span>
-            </div>
-        </div>
 
+        
+        <div class="invoice-number">ID: ${escapeHtml(car.id)}</div>
+        
+        <div class="section-title">Car Details / تفاصيل السيارة</div>
+        
+        <div class="info-grid">
+            <div class="info-row">
+                <div class="info-label">Owner Name / اسم المالك</div>
+                <div class="info-value">${escapeHtml(car.carOwnerName)}</div>
+            </div>
+            <div class="info-row">
+                <div class="info-label">Car Name / اسم السيارة</div>
+                <div class="info-value">${escapeHtml(car.carName)}</div>
+            </div>
+         
+            <div class="info-row">
+                <div class="info-label">VIN / رقم الشاصي</div>
+                <div class="info-value">${escapeHtml(car.vin)}</div>
+            </div>
+            <div class="info-row">
+                <div class="info-label">Purchase Date / تاريخ الشراء</div>
+                <div class="info-value">${escapeHtml(car.purchaseDate)}</div>
+            </div>
+            <div class="info-row">
+                <div class="info-label">Arrival Date / تاريخ الوصول</div>
+                <div class="info-value">${escapeHtml(car.arrivalDate)}</div>
+            </div>
+        </div>
+        <table class="details-table">
+            <thead>
+                <tr>
+                    <th>Car Shipping Details / تفاصيل شحن السيارة</th>
+                    <th>Credit / دائن (AED)</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>Njoom Shipping Cost / تكلفة شحن نجوم</td>
+                    <td>${njoomCost}</td>
+                </tr>
+                <tr>
+                </tr>
+            </tbody>
+        </table>
+
+        ${paymentSectionHtml}
+                
+        <div class="total-section">
+            <div class="total-row">
+                <span class="total-label">Total Cost / التكلفة الإجمالية</span>
+                <span class="total-value">${formatMoney(calculatedTotal)}</span>
+            </div>
+        </div>
         <div class="signature-section">
-            <div class="label">Signature</div>
+            <div class="info-label" style="display: inline-block; margin-bottom: 10px;">Signature</div>
             ${signatureHtml}
+        </div>
+        
+        <div class="footer">
+            Printed in ${new Date().toLocaleString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true })}
         </div>
     </div>
     <script>
@@ -445,5 +532,7 @@
         loadData();
     </script>
 </body>
-
 </html>
+
+
+
