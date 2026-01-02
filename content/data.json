@@ -33,7 +33,7 @@
       "shippingCostPaymentDate": "2025-12-01",
       "vin": "JHMFL4H92SX008153",
       "id": "006",
-      "shippingCost": 2500,
+      "shippingCost": 0,
       "arrivalPayment1Amount": 8200,
       "arrivalPayment2Amount": "",
       "carTotalCost": 8265,
