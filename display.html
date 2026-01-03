@@ -261,8 +261,8 @@
             const logoUrl = baseUrl + 'logo.png';
 
             const purchaseCost = parseFloat(car.purchaseCost) || 0;
-            // Formula: purchaseCost * 3.679 + 83
-            const calculatedTotal = (purchaseCost * 3.679 + 83).toFixed(2);
+            // Total cost now comes from admin input
+            const totalCost = parseFloat(car.carTotalCost) || 0;
             
             const njoomCost = formatMoney(car.njoomShippingCost);
             
@@ -503,7 +503,7 @@
         <div class="total-section">
             <div class="total-row">
                 <span class="total-label">Total Cost / التكلفة الإجمالية</span>
-                <span class="total-value">${formatMoney(calculatedTotal)}</span>
+                <span class="total-value">${formatMoney(totalCost)}</span>
             </div>
         </div>
         <div class="signature-section">
@@ -533,7 +533,6 @@
     </script>
 </body>
 </html>
-
 
 
 
